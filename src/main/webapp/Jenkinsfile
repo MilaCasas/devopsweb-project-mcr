@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+    tools {
+        maven 'maven-3.9.6'
+    }
+    stages {
+        stage('Packaging') {
+            steps {
+                echo 'Packaging..'
+                sh 'mvn clean package'
+            }
+        }
+        stage('Copying war file') {
+            steps {
+                echo 'Copying war file..'
+                sh 'mv target/*.war .'
+            }
+        }
+        stage('cleanup') {
+            steps {
+                echo 'Cleaning up old containers...'
+                sh 'docker stop devops-web-project-server || true'
+                sh 'docker rm devops-web-project-server || true'
+                // Limpia imágenes antiguas para no llenar el disco
+                sh 'docker system prune -f --filter "label=devops-web-projectserver"'
+            }
+        }
+        stage('build image') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t MilaCasas/devops-web-project:v1 --label devops-web-projectserver .'
+            }
+        }
+        stage('run container') {
+            steps {
+                echo 'Starting container on port 8081...'
+                sh 'docker run -d --name devops-web-project-server --label devops-web-projectserver -p 8081:8080 MilaCasas/devops-web-project:v1'
+            }
+        }
+    }
+}
